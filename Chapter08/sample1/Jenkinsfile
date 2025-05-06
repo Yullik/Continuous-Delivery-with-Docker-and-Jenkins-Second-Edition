@@ -13,6 +13,11 @@ pipeline {
                 git branch: 'main', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
             }
         }
+        stage('Verify Workspace') {
+            steps {
+                sh 'ls -l'  // List files in the workspace to verify gradlew is present
+            }
+        }
         stage("Prepare Gradle Wrapper") {
             steps {
                 sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
