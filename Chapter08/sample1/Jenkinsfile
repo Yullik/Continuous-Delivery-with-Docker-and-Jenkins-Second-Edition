@@ -1,7 +1,7 @@
 pipeline {
-    agent any
+    agent { label 'docker-agent' }  // Use the Docker agent with the 'docker-agent' label
     triggers {
-        pollSCM('* * * * *') // Polling every minute
+        pollSCM('* * * * *') // Poll every minute
     }
     environment {
         GRADLEW_PATH = "./gradlew"  // Gradle wrapper path
@@ -29,6 +29,9 @@ pipeline {
             }
         }
         stage("Code coverage") {
+            when {
+                changeset '**/*.java'  // Only run if a Java file is modified
+            }
             steps {
                 sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
                 sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
@@ -40,6 +43,9 @@ pipeline {
             }
         }
         stage("Jacoco Checkstyle Test") {
+            when {
+                changeset '**/*.java'  // Only run if a Java file is modified
+            }
             steps {
                 sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
                 publishHTML(target: [
@@ -102,6 +108,14 @@ pipeline {
                 sleep 60  // Wait for deployments
                 sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
             }
+        }
+    }
+    post {
+        success {
+            echo "pipeline ran perfectly"
+        }
+        failure {
+            echo "pipeline failure"
         }
     }
 }

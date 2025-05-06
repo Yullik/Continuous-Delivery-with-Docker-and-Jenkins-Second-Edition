@@ -5,6 +5,12 @@ import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
 import org.springframework.web.client.RestTemplate;
 
+
+// New import for Cucumber 6.x
+import io.cucumber.junit.Cucumber;
+import io.cucumber.junit.CucumberOptions;
+
+
 import static org.junit.Assert.assertEquals;
 
 /** Steps definitions for calculator.feature */
