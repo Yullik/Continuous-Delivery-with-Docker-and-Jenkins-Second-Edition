@@ -25,7 +25,7 @@ pipeline {
         }
         stage("Compile") {
             steps {
-                sh "${GRADLEW_PATH} compileJava"  // Compile the Java project
+                sh "${GRADLEW_PATH} build.gradle"  // Compile the Java project
             }
         }
         stage("Unit test") {
