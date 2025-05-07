@@ -16,12 +16,16 @@ pipeline {
         }
         stage('Verify Workspace') {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh 'ls -l'  // List files in the workspace to verify gradlew is present
+                }
             }
         }
         stage("Prepare Gradle Wrapper") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
+                }
             }
         }
         stage("Compile") {
