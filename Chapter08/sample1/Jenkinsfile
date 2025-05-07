@@ -2,8 +2,9 @@ pipeline {
     agent { label 'docker-agent' }  // Use the docker-agent label to specify this job should run on the agent with Docker
     environment {
         REPO_URL = 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
-        GRADLEW_PATH = 'Chapter08/sample1/gradlew'  // Correct Gradle wrapper path (inside the repo)
+        GRADLEW_PATH = "./gradlew"  // Correct Gradle wrapper path (inside the repo)
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
+        WORKSPACE_JAVA = "./Chapter08/sample1/"
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  // Docker credentials ID for Docker Hub
     }
     triggers {
@@ -12,19 +13,21 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'master', url: REPO_URL  // Checkout from the repo
+                git branch: 'master', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
             }
         }
 
         stage('Prepare Gradle Wrapper') {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
+                }
             }
         }
 
         stage('Build') {
             steps {
-                dir('Chapter08/sample1') {  // Change directory to where the gradlew is located
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to where the gradlew is located
                     sh "${GRADLEW_PATH} build"  // Run Gradle build
                 }
             }
@@ -32,7 +35,7 @@ pipeline {
 
         stage('Unit test') {
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "${GRADLEW_PATH} test"  // Run unit tests
                 }
             }
@@ -43,7 +46,7 @@ pipeline {
                 changeset '**/*.java'  // Only run if Java files were changed
             }
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
                     sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
                 }
@@ -55,7 +58,7 @@ pipeline {
                 changeset '**/*.java'  // Only run if Java files were changed
             }
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
                 }
             }
@@ -66,7 +69,7 @@ pipeline {
                 changeset '**/*.java'  // Only run if Java files were changed
             }
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
                     publishHTML(target: [
                         reportDir: 'build/reports/checkstyle',  
@@ -79,7 +82,7 @@ pipeline {
 
         stage('Package') {
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "${GRADLEW_PATH} build"  // Build the project
                 }
             }
@@ -87,7 +90,7 @@ pipeline {
 
         stage('Docker build') {
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
                 }
             }
@@ -109,7 +112,7 @@ pipeline {
 
         stage('Update version') {
             steps {
-                dir('Chapter08/sample1') {  // Change directory to the appropriate folder
+                dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
                     sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
                 }
             }
