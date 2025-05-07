@@ -1,10 +1,10 @@
 pipeline {
-    agent { label 'docker-agent' }  // Use the docker-agent label to specify this job should run on the agent with Docker
+    agent any
     triggers {
         pollSCM('* * * * *') // Polling every minute
     }
     environment {
-        GRADLEW_PATH = "./Chapter08/sample1/gradlew"  // Correct Gradle wrapper path (assumed path inside the repo)
+        GRADLEW_PATH = "./gradlew"  // Gradle wrapper path
         BUILD_TIMESTAMP = "${env.BUILD_ID}"  // Use Jenkins build ID as timestamp
     }
     stages {
@@ -15,103 +15,139 @@ pipeline {
         }
         stage("Prepare Gradle Wrapper") {
             steps {
-                sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
+                dir('Chapter08/sample1') {  // Ensure we're in the correct directory
+                    sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
+                }
             }
         }
         stage("Compile") {
             steps {
-                sh "${GRADLEW_PATH} compileJava"  // Compile the Java project
+                dir('Chapter08/sample1') {  // Make sure to run Gradle commands from the correct directory
+                    sh "${GRADLEW_PATH} compileJava"  // Compile the Java project
+                }
             }
         }
         stage("Unit test") {
             steps {
-                sh "${GRADLEW_PATH} test"  // Run unit tests
+                dir('Chapter08/sample1') {  // Run unit tests in the correct directory
+                    sh "${GRADLEW_PATH} test"  // Run unit tests
+                }
             }
         }
         stage("Code coverage") {
             when {
-                changeset '**/*.java'  // Only run if Java files were changed
+                changeset "**/*.java"  // Only run this if a Java file is changed
             }
             steps {
-                sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
-                sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
+                dir('Chapter08/sample1') {  // Run code coverage in the correct directory
+                    sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
+                }
             }
         }
         stage("Static code analysis") {
-            when {
-                changeset '**/*.java'  // Only run if Java files were changed
-            }
             steps {
-                sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
+                dir('Chapter08/sample1') {  // Run static code analysis in the correct directory
+                    sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
+                }
             }
         }
         stage("Jacoco Checkstyle Test") {
             when {
-                changeset '**/*.java'  // Only run if Java files were changed
+                changeset "**/*.java"  // Only run this if a Java file is changed
             }
             steps {
-                sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
-                publishHTML(target: [
-                    reportDir: 'build/reports/checkstyle',  
-                    reportFiles: 'main.html',  
-                    reportName: "Jacoco Checkstyle"
-                ])  // Publish Checkstyle report
+                dir('Chapter08/sample1') {  // Run Checkstyle on test files in the correct directory
+                    sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
+                    publishHTML(target: [
+                        reportDir: 'build/reports/checkstyle',  
+                        reportFiles: 'main.html',  
+                        reportName: "Jacoco Checkstyle"
+                    ])  // Publish Checkstyle report
+                }
             }
         }
         stage("Package") {
             steps {
-                sh "${GRADLEW_PATH} build"  // Build the project
+                dir('Chapter08/sample1') {  // Run packaging in the correct directory
+                    sh "${GRADLEW_PATH} build"  // Build the project
+                }
             }
         }
         stage("Docker build") {
             steps {
-                sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
+                dir('Chapter08/sample1') {  // Ensure Docker build is executed in the correct directory
+                    sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
+                }
             }
         }
         stage("Docker login") {
             steps {
                 withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                                usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
-                    sh "docker login --username $USERNAME --password $PASSWORD"  // Docker login
+                    dir('Chapter08/sample1') {  // Ensure Docker login is executed in the correct directory
+                        sh "docker login --username $USERNAME --password $PASSWORD"  // Docker login
+                    }
                 }
             }
         }
         stage("Docker push") {
             steps {
-                sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"  // Push Docker image to registry
+                dir('Chapter08/sample1') {  // Ensure Docker push is executed in the correct directory
+                    sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"  // Push Docker image to registry
+                }
             }
         }
         stage("Update version") {
             steps {
-                sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
+                dir('Chapter08/sample1') {  // Ensure version update is executed in the correct directory
+                    sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
+                }
             }
         }
         stage("Deploy to staging") {
             steps {
-                sh "kubectl config use-context staging"  // Use Kubernetes staging context
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
+                dir('Chapter08/sample1') {  // Ensure deploy is executed in the correct directory
+                    sh "kubectl config use-context staging"  // Use Kubernetes staging context
+                    sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
+                    sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
+                }
             }
         }
         stage("Acceptance test") {
             steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
+                dir('Chapter08/sample1') {  // Ensure acceptance tests are executed in the correct directory
+                    sleep 60  // Wait for deployments
+                    sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
+                }
             }
         }
         stage("Release") {
             steps {
-                sh "kubectl config use-context production"  // Use Kubernetes production context
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
+                dir('Chapter08/sample1') {  // Ensure release is executed in the correct directory
+                    sh "kubectl config use-context production"  // Use Kubernetes production context
+                    sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
+                    sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
+                }
             }
         }
         stage("Smoke test") {
             steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
+                dir('Chapter08/sample1') {  // Ensure smoke tests are executed in the correct directory
+                    sleep 60  // Wait for deployments
+                    sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
+                }
             }
         }
     }
+    post {
+        success {
+            echo "Pipeline ran perfectly"
+        }
+        failure {
+            echo "Pipeline failure"
+        }
+    }
 }
+
 
