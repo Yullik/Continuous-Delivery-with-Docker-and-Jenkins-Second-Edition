@@ -37,6 +37,7 @@ pipeline {
         }
         stage("Unit test") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "${GRADLEW_PATH} test"  // Run unit tests
             }
         }
@@ -45,12 +46,14 @@ pipeline {
                 changeset '**/*.java'  // Only run if a Java file is modified
             }
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
                 sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
             }
         }
         stage("Static code analysis") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
             }
         }
@@ -59,6 +62,7 @@ pipeline {
                 changeset '**/*.java'  // Only run if a Java file is modified
             }
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
                 publishHTML(target: [
                     reportDir: 'build/reports/checkstyle',  
@@ -69,16 +73,19 @@ pipeline {
         }
         stage("Package") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "${GRADLEW_PATH} build"  // Build the project
             }
         }
         stage("Docker build") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
             }
         }
         stage("Docker login") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
                                usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                     sh "docker login --username $USERNAME --password $PASSWORD"  // Docker login
@@ -87,16 +94,19 @@ pipeline {
         }
         stage("Docker push") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"  // Push Docker image to registry
             }
         }
         stage("Update version") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
             }
         }
         stage("Deploy to staging") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "kubectl config use-context staging"  // Use Kubernetes staging context
                 sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
                 sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
@@ -104,12 +114,14 @@ pipeline {
         }
         stage("Acceptance test") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sleep 60  // Wait for deployments
                 sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
             }
         }
         stage("Release") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sh "kubectl config use-context production"  // Use Kubernetes production context
                 sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
                 sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
@@ -117,6 +129,7 @@ pipeline {
         }
         stage("Smoke test") {
             steps {
+                dir("${WORKSPACE_JAVA}"){
                 sleep 60  // Wait for deployments
                 sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
             }
