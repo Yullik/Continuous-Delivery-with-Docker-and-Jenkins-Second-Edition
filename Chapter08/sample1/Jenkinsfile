@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage("Checkout") {
             steps {
-                git branch: 'main', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
+                git branch: 'master', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
             }
         }
         stage('Verify Workspace') {
