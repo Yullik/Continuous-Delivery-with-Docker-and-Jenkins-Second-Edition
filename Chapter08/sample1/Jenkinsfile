@@ -1,7 +1,6 @@
 pipeline {
     agent { label 'docker-agent' } 
     environment {
-        REPO_URL = 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
         GRADLEW_PATH = "./gradlew"  
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
@@ -75,7 +74,7 @@ pipeline {
                         reportDir: 'build/reports/checkstyle',  
                         reportFiles: 'main.html',  
                         reportName: "Jacoco Checkstyle"
-                    ])  // Publish Checkstyle report
+                    ])  
                 }
             }
         }
@@ -83,7 +82,8 @@ pipeline {
         stage('Package') {
             steps {
                     dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"  
+                    sh "${GRADLEW_PATH} build"
+                 }
             }
         }
 
@@ -145,6 +145,14 @@ pipeline {
                 sleep 60  // Wait for deployments
                 sh "chmod +x smoke-test.sh && ./smoke-test.sh"  
             }
+        }
+    }
+        post {
+        success {
+            echo "pipeline ran perfectly"
+        }
+        failure {
+            echo "pipeline failure"
         }
     }
 }
