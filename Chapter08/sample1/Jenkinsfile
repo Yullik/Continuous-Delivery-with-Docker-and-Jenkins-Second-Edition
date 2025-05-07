@@ -143,4 +143,5 @@ pipeline {
             echo "pipeline failure"
         }
     }
+ }
 }
