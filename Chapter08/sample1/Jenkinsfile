@@ -1,14 +1,14 @@
 pipeline {
-    agent { label 'docker-agent' }  // Use the docker-agent label to specify this job should run on the agent with Docker
+    agent { label 'docker-agent' } 
     environment {
         REPO_URL = 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
-        GRADLEW_PATH = "./gradlew"  // Correct Gradle wrapper path (inside the repo)
+        GRADLEW_PATH = "./gradlew"  
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
-        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  // Docker credentials ID for Docker Hub
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  
     }
     triggers {
-        pollSCM('* * * * *')  // Poll every minute for changes
+        pollSCM('* * * * *') 
     }
     stages {
         stage('Checkout') {
@@ -20,57 +20,57 @@ pipeline {
         stage('Prepare Gradle Wrapper') {
             steps {
                 dir("${WORKSPACE_JAVA}"){
-                sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
+                sh "chmod +x ${GRADLEW_PATH}"  
                 }
             }
         }
 
         stage('Build') {
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to where the gradlew is located
-                    sh "${GRADLEW_PATH} build"  // Run Gradle build
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} build"  
                 }
             }
         }
 
         stage('Unit test') {
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "${GRADLEW_PATH} test"  // Run unit tests
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} test" 
                 }
             }
         }
 
         stage('Code coverage') {
             when {
-                changeset '**/*.java'  // Only run if Java files were changed
+                changeset '**/*.java' 
             }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
-                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} jacocoTestReport"  
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification" 
                 }
             }
         }
 
         stage('Static code analysis') {
             when {
-                changeset '**/*.java'  // Only run if Java files were changed
+                changeset '**/*.java'  
             }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} checkstyleMain" 
                 }
             }
         }
 
         stage('Jacoco Checkstyle Test') {
             when {
-                changeset '**/*.java'  // Only run if Java files were changed
+                changeset '**/*.java'  
             }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} checkstyleTest"  
                     publishHTML(target: [
                         reportDir: 'build/reports/checkstyle',  
                         reportFiles: 'main.html',  
@@ -82,16 +82,15 @@ pipeline {
 
         stage('Package') {
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "${GRADLEW_PATH} build"  // Build the project
-                }
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} build"  
             }
         }
 
         stage('Docker build') {
             steps {
-                    dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
+                    dir("${WORKSPACE_JAVA}") { 
+                    sh "docker build -t yullik/calculator:${BUILD_TIMESTAMP} ." 
                 }
             }
         }
@@ -99,52 +98,52 @@ pipeline {
         stage('Docker login') {
             steps {
                 withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh 'docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD'  // Docker login
+                    sh 'docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD'  
                 }
             }
         }
 
         stage('Docker push') {
             steps {
-                sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"  // Push Docker image to registry
+                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" 
             }
         }
 
         stage('Update version') {
             steps {
-                dir("${WORKSPACE_JAVA}") {  // Change directory to the appropriate folder
-                    sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml" 
                 }
             }
         }
 
         stage('Deploy to staging') {
             steps {
-                sh "kubectl config use-context staging"  // Use Kubernetes staging context
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
+                sh "kubectl config use-context staging"  
+                sh "kubectl apply -f hazelcast.yaml"  
+                sh "kubectl apply -f calculator.yaml"  
             }
         }
 
         stage('Acceptance test') {
             steps {
                 sleep 60  // Wait for deployments
-                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
+                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  
             }
         }
 
         stage('Release') {
             steps {
-                sh "kubectl config use-context production"  // Use Kubernetes production context
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
+                sh "kubectl config use-context production" 
+                sh "kubectl apply -f hazelcast.yaml" 
+                sh "kubectl apply -f calculator.yaml"  
             }
         }
 
         stage('Smoke test') {
             steps {
                 sleep 60  // Wait for deployments
-                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
+                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  
             }
         }
     }
