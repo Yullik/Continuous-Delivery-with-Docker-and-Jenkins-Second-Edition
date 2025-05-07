@@ -2,9 +2,9 @@ pipeline {
     agent { label 'docker-agent' }  // Use the docker-agent label to specify this job should run on the agent with Docker
     environment {
         REPO_URL = 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
-        GRADLEW_PATH = './gradlew'  // Gradle wrapper path in the repository root
+        GRADLEW_PATH = 'Chapter08/sample1/gradlew'  // Correct Gradle wrapper path (inside the repo)
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
-        DOCKER_CREDENTIALS_ID = 'dockerhub-creds' // Docker credentials ID for Docker Hub
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  // Docker credentials ID for Docker Hub
     }
     triggers {
         pollSCM('* * * * *')  // Poll every minute for changes
