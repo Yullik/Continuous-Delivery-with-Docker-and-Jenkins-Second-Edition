@@ -26,7 +26,7 @@ pipeline {
         }
         stage("Compile") {
             steps {
-                dir(${WORKSPACE_JAVA}){
+                dir("${WORKSPACE_JAVA}"){
                 sh "${GRADLEW_PATH} compileJava"  // Compile the Java project
                 }
             }
