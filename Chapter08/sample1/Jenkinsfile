@@ -1,7 +1,6 @@
 pipeline {
-    agent any
-    labels {
-        docker-agent
+    agent {
+        label 'docker-agent'  // Specify the label for the agent where the job will run
     }
     environment {
         GRADLEW_PATH = "./gradlew"  // Gradle wrapper path
@@ -164,5 +163,3 @@ pipeline {
         }
     }
 }
-
-
