@@ -1,145 +1,116 @@
 pipeline {
-    agent any
-    environment {
-        REPO_URL = 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
-        GRADLEW_PATH = './gradlew'
-        BUILD_TIMESTAMP = "${env.BUILD_ID}"
-    }
+    agent { label 'docker-agent' }  // Use the docker-agent label to specify this job should run on the agent with Docker
     triggers {
-        pollSCM('* * * * *')
+        pollSCM('* * * * *') // Polling every minute
     }
-
+    environment {
+        GRADLEW_PATH = "./Chapter08/sample1/gradlew"  // Correct Gradle wrapper path (assumed path inside the repo)
+        BUILD_TIMESTAMP = "${env.BUILD_ID}"
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds' // Use Jenkins build ID as timestamp
+    }
     stages {
-        stage('Checkout') {
+        stage("Checkout") {
             steps {
-                git branch: 'main', url: REPO_URL
+                git branch: 'main', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
             }
         }
-
-        stage('Build') {
+        stage("Prepare Gradle Wrapper") {
             steps {
-                dir('Chapter08/sample1') {
-                    sh './gradlew build'
-                }
+                sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
             }
         }
-
-        stage('Deploy if Build Succeeded') {
+        stage("Compile") {
+            steps {
+                sh "${GRADLEW_PATH} compileJava"  // Compile the Java project
+            }
+        }
+        stage("Unit test") {
+            steps {
+                sh "${GRADLEW_PATH} test"  // Run unit tests
+            }
+        }
+        stage("Code coverage") {
             when {
-                success()
+                changeset '**/*.java'  // Only run if Java files were changed
             }
             steps {
-                echo 'Deploying application...'
+                sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
+                sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
             }
         }
-
-        stage('Notify if Build Failed') {
+        stage("Static code analysis") {
             when {
-                failure()
+                changeset '**/*.java'  // Only run if Java files were changed
             }
             steps {
-                echo 'Sending failure notification...'
+                sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
             }
         }
-
-        stage('Run Integration Tests') {
+        stage("Jacoco Checkstyle Test") {
             when {
-                expression {
-                    return currentBuild.rawBuild.getPreviousBuild()?.getResult()?.toString() == 'SUCCESS'
-                }
+                changeset '**/*.java'  // Only run if Java files were changed
             }
             steps {
-                dir('Chapter08/sample1') {
-                    sh './gradlew integrationTest'
-                }
+                sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
+                publishHTML(target: [
+                    reportDir: 'build/reports/checkstyle',  
+                    reportFiles: 'main.html',  
+                    reportName: "Jacoco Checkstyle"
+                ])  // Publish Checkstyle report
             }
         }
-
-        stage('Code coverage') {
-            when {
-                changeset '**/*.java'
-            }
+        stage("Package") {
             steps {
-                dir('Chapter08/sample1') {
-                    sh './gradlew jacocoTestReport'
-                    sh './gradlew jacocoTestCoverageVerification'
-                }
+                sh "${GRADLEW_PATH} build"  // Build the project
             }
         }
-
-        stage('Static code analysis') {
-            when {
-                changeset '**/*.java'
-            }
+        stage("Docker build") {
             steps {
-                dir('Chapter08/sample1') {
-                    sh './gradlew checkstyleMain'
-                }
+                sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
             }
         }
-
-        stage('Jacoco Checkstyle Test') {
-            when {
-                changeset '**/*.java'
-            }
+        stage("Docker login") {
             steps {
-                dir('Chapter08/sample1') {
-                    sh './gradlew checkstyleTest'
-                    publishHTML(target: [
-                        reportDir: 'build/reports/checkstyle',
-                        reportFiles: 'main.html',
-                        reportName: "Jacoco Checkstyle"
-                    ])
-                }
+                withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh 'docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD'
+                 }
             }
         }
-
-        stage('Update version') {
+        stage("Docker push") {
             steps {
-                dir('Chapter08/sample1') {
-                    sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"
-                }
+                sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"  // Push Docker image to registry
             }
         }
-
-        stage('Deploy to staging') {
+        stage("Update version") {
             steps {
-                sh "kubectl config use-context staging"
-                sh "kubectl apply -f hazelcast.yaml"
-                sh "kubectl apply -f calculator.yaml"
+                sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
             }
         }
-
-        stage('Acceptance test') {
+        stage("Deploy to staging") {
             steps {
-                sleep 60
-                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"
+                sh "kubectl config use-context staging"  // Use Kubernetes staging context
+                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
+                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
             }
         }
-
-        stage('Release') {
+        stage("Acceptance test") {
             steps {
-                sh "kubectl config use-context production"
-                sh "kubectl apply -f hazelcast.yaml"
-                sh "kubectl apply -f calculator.yaml"
+                sleep 60  // Wait for deployments
+                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
             }
         }
-
-        stage('Smoke test') {
+        stage("Release") {
             steps {
-                sleep 60
-                sh "chmod +x smoke-test.sh && ./smoke-test.sh"
+                sh "kubectl config use-context production"  // Use Kubernetes production context
+                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
+                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
             }
         }
-    }
-
-    post {
-        failure {
-            echo 'Pipeline failure'
-        }
-        success {
-            echo 'Pipeline ran perfectly'
+        stage("Smoke test") {
+            steps {
+                sleep 60  // Wait for deployments
+                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
+            }
         }
     }
 }
-
