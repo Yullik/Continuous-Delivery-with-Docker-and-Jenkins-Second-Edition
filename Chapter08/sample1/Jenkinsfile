@@ -4,7 +4,7 @@ pipeline {
         pollSCM('* * * * *') // Poll every minute
     }
     environment {
-        GRADLEW_PATH = "./gradlew"  // Gradle wrapper path
+        GRADLEW_PATH = "./Chapter08/sample1/gradlew"  // Gradle wrapper path
         BUILD_TIMESTAMP = "${env.BUILD_ID}"  // Use Jenkins build ID as timestamp
     }
     stages {
