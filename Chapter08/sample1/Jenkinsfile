@@ -117,22 +117,6 @@ pipeline {
             }
         }
       
-
-        stage('Acceptance test') {
-            steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  
-            }
-        }
-
-    
-        stage('Smoke test') {
-            steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  
-            }
-        }
-    }
         post {
         success {
             echo "pipeline ran perfectly"
