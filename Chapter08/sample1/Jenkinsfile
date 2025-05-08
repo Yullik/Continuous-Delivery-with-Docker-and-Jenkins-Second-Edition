@@ -118,8 +118,7 @@ pipeline {
         }
         stage('Kubectl Config Setup') {
             steps {
-                sh 'kubectl version --client' 
-                sh 'kubectl config use-context docker-desktop'  
+                sh 'kubectl version --client'   
             }
         }
         stage('Deploy to staging') {
