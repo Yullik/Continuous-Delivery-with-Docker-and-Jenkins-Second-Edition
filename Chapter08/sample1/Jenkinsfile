@@ -1,112 +1,119 @@
 pipeline {
-    agent { label 'docker-agent' }  // Use the Docker agent with the 'docker-agent' label
-    triggers {
-        pollSCM('* * * * *') // Poll every minute
-    }
+    agent { label 'docker-agent' } 
     environment {
-        GRADLEW_PATH = "./gradlew"  // Gradle wrapper path
-        BUILD_TIMESTAMP = "${env.BUILD_ID}"  // Use Jenkins build ID as timestamp
+        GRADLEW_PATH = "./gradlew"  
+        BUILD_TIMESTAMP = "${env.BUILD_ID}"
+        WORKSPACE_JAVA = "./Chapter08/sample1/"
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  //added credentials
+    }
+    triggers {
+        pollSCM('* * * * *') 
     }
     stages {
-        stage("Checkout") {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
+                git branch: 'master', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
             }
         }
-        stage("Prepare Gradle Wrapper") {
+
+        stage('Prepare Gradle Wrapper') {
             steps {
-                sh "chmod +x ${GRADLEW_PATH}"  // Make gradlew executable
-            }
-        }
-        stage("Compile") {
-            steps {
-                sh "${GRADLEW_PATH} compileJava"  // Compile the Java project
-            }
-        }
-        stage("Unit test") {
-            steps {
-                sh "${GRADLEW_PATH} test"  // Run unit tests
-            }
-        }
-        stage("Code coverage") {
-            when {
-                changeset '**/*.java'  // Only run if a Java file is modified
-            }
-            steps {
-                sh "${GRADLEW_PATH} jacocoTestReport"  // Generate JaCoCo test report
-                sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
-            }
-        }
-        stage("Static code analysis") {
-            steps {
-                sh "${GRADLEW_PATH} checkstyleMain"  // Run static code analysis with Checkstyle
-            }
-        }
-        stage("Jacoco Checkstyle Test") {
-            when {
-                changeset '**/*.java'  // Only run if a Java file is modified
-            }
-            steps {
-                sh "${GRADLEW_PATH} checkstyleTest"  // Run Checkstyle on test files
-                publishHTML(target: [
-                    reportDir: 'build/reports/checkstyle',  
-                    reportFiles: 'main.html',  
-                    reportName: "Jacoco Checkstyle"
-                ])  // Publish Checkstyle report
-            }
-        }
-        stage("Package") {
-            steps {
-                sh "${GRADLEW_PATH} build"  // Build the project
-            }
-        }
-        stage("Docker build") {
-            steps {
-                sh "docker build -t leszko/calculator:${BUILD_TIMESTAMP} ."  // Build Docker image
-            }
-        }
-        stage("Docker login") {
-            steps {
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'docker-hub-credentials',
-                               usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
-                    sh "docker login --username $USERNAME --password $PASSWORD"  // Docker login
+                dir("${WORKSPACE_JAVA}"){
+                sh "chmod +x ${GRADLEW_PATH}"  
                 }
             }
         }
-        stage("Docker push") {
+
+        stage('Build') {
             steps {
-                sh "docker push leszko/calculator:${BUILD_TIMESTAMP}"  // Push Docker image to registry
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} build"  
+                }
             }
         }
-        stage("Update version") {
+
+        stage('Unit test') {
             steps {
-                sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml"  // Update version in calculator.yaml
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} test" 
+                }
             }
         }
-        stage("Deploy to staging") {
+
+        stage('Code coverage') {
+            when {
+                changeset '**/*.java' 
+            }
             steps {
-                sh "kubectl config use-context staging"  // Use Kubernetes staging context
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} jacocoTestReport"  
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification" 
+                }
             }
         }
-        stage("Acceptance test") {
+
+        stage('Static code analysis') {
+            when {
+                changeset '**/*.java'  
+            }
             steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} checkstyleMain" 
+                }
             }
         }
-        stage("Release") {
+
+        stage('Jacoco Checkstyle Test') {
+            when {
+                changeset '**/*.java'  
+            }
             steps {
-                sh "kubectl config use-context production"  // Use Kubernetes production context
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} checkstyleTest"  
+                    publishHTML(target: [
+                        reportDir: 'build/reports/checkstyle',  
+                        reportFiles: 'main.html',  
+                        reportName: "Jacoco Checkstyle"
+                    ])  
+                }
             }
         }
-        stage("Smoke test") {
+
+        stage('Package') {
             steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
+                    dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} build"
+                 }
+            }
+        }
+
+        stage('Docker build') {
+            steps {
+                    dir("${WORKSPACE_JAVA}") { 
+                    sh "docker build -t yullik/calculator:${BUILD_TIMESTAMP} ." 
+                }
+            }
+        }
+
+        stage('Docker login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh 'docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD'  
+                }
+            }
+        }
+
+        stage('Docker push') {
+            steps {
+                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" 
+            }
+        }
+
+        stage('Update version') {
+            steps {
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml" 
+                }
             }
         }
     }
@@ -119,3 +126,4 @@ pipeline {
         }
     }
 }
+
