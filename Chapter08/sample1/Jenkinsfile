@@ -116,6 +116,35 @@ pipeline {
                 }
             }
         }
+        tage('Deploy to staging') {
+            steps {
+                sh "kubectl config use-context staging"  // Use Kubernetes staging context
+                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
+                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
+            }
+        }
+
+        stage('Acceptance test') {
+            steps {
+                sleep 60  // Wait for deployments
+                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
+            }
+        }
+
+        stage('Release') {
+            steps {
+                sh "kubectl config use-context production"  // Use Kubernetes production context
+                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
+                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
+            }
+        }
+
+        stage('Smoke test') {
+            steps {
+                sleep 60  // Wait for deployments
+                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
+            }
+        }
     }
     post {
         success {
