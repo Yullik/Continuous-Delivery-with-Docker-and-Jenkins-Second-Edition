@@ -116,7 +116,7 @@ pipeline {
                 }
             }
         }
-        tage('Deploy to staging') {
+        stage('Deploy to staging') {
             steps {
                 sh "kubectl config use-context staging"  // Use Kubernetes staging context
                 sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
