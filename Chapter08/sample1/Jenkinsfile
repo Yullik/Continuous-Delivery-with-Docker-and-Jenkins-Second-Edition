@@ -87,7 +87,7 @@ pipeline {
             }
         }
 
-        stage('Docker build') {
+        /* stage('Docker build') {
             steps {
                     dir("${WORKSPACE_JAVA}") { 
                     sh "docker build -t yullik/calculator:${BUILD_TIMESTAMP} ." 
@@ -105,7 +105,7 @@ pipeline {
 
         stage('Docker push') {
             steps {
-                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" 
+                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" */
             }
         }
 
