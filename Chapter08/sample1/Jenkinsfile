@@ -105,9 +105,9 @@ pipeline {
 
         stage('Docker push') {
             steps {
-                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" */
+                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" 
             }
-        }
+        } */
 
         stage('Update version') {
             steps {
