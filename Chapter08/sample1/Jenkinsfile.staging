@@ -2,8 +2,15 @@ pipeline {
     agent { label 'docker-agent' }
 
     environment {
+        IMAGE_NAME = "yullik/calculator"
+        LOCAL_REGISTRY = "localhost:5000"
+        IMAGE_TAG = "latest"
+        IMAGE_FULL = "${LOCAL_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         KUBECONFIG_PATH = "/var/jenkins_home/.kube/config"
-        WORKSPACE_SAMPLE1 = "Chapter08/sample1"
+    }
+
+    triggers {
+        pollSCM('H/5 * * * *')
     }
 
     stages {
@@ -13,40 +20,74 @@ pipeline {
             }
         }
 
-        stage('Apply Kubernetes Resources') {
+        stage('Build Docker Image') {
             steps {
-                dir("${WORKSPACE_SAMPLE1}") {
-                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml --validate=false"
-                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml --validate=false"
-                    sh 'sleep 10'
+                dir("Chapter08/sample1") {
+                    sh "docker build -t ${IMAGE_FULL} ."
                 }
             }
         }
 
-        stage('Run curl test') {
+        stage('Push to Local Registry') {
             steps {
-                dir("${WORKSPACE_SAMPLE1}") {
+                sh "docker push ${IMAGE_FULL}"
+            }
+        }
+
+        stage('Deploy to Staging (Docker Desktop)') {
+            steps {
+                dir("Chapter08/sample1") {
+                    sh '''
+                        kubectl config use-context docker-desktop
+                        export KUBECONFIG='${KUBECONFIG_PATH}'
+                        kubectl apply -f calculator.yaml --validate=false
+                        kubectl apply -f hazelcast.yaml --validate=false
+                        sleep 10
+                    '''
+                }
+            }
+        }
+
+        stage('Test in Staging') {
+            steps {
+                dir("Chapter08/sample1") {
                     script {
-                        // Start port-forward in background
-                        sh "nohup kubectl --kubeconfig=${KUBECONFIG_PATH} port-forward service/calculator-service 8765:8080 &"
-                        sh 'sleep 5'
-                        // Test calculator via localhost
-                        sh 'curl http://localhost:8765/sum?a=2\\&b=3'
+                        sh '''
+                            nohup kubectl port-forward service/calculator-service 8765:8080 &
+                            sleep 5
+                            curl --fail http://localhost:8765/sum?a=2\\&b=3
+                        '''
                     }
                 }
             }
         }
 
-        stage('Verify Replicas') {
+        stage('Deploy to Production (Google GKE)') {
             steps {
-                sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl get deployment calculator-deployment -o=jsonpath='{.status.replicas}'"
+                dir("Chapter08/sample1") {
+                    sh '''
+                        kubectl config use-context gke_umls24-418119_us-central1_hello-cluster
+                        export KUBECONFIG='${KUBECONFIG_PATH}'
+                        kubectl apply -f calculator.yaml --validate=false
+                        kubectl apply -f hazelcast.yaml --validate=false
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Production Pods') {
+            steps {
+                sh '''
+                    kubectl get pods
+                '''
             }
         }
     }
 
     post {
         always {
-            echo 'Staging pipeline finished.'
+            echo "Pipeline execution complete."
         }
     }
 }
+
