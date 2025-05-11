@@ -48,7 +48,7 @@ public class StepDefinitions {
 
     @Then("^I receive (.*) as the quotient$")
     public void i_receive_as_the_quotient(String expectedResult) throws Throwable {
-        System.out.println("DEBUG >>> Actual result: " + result);
-        // assertEquals(expectedResult, result); // Temporarily commented out
+        assertEquals(expectedResult, result);
     }
 }
+
