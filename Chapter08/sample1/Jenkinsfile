@@ -1,17 +1,18 @@
 pipeline {
     agent { label 'docker-agent' }
+
     environment {
         GRADLEW_PATH = "./gradlew"
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
         DOCKER_REGISTRY = 'docker.io'
-        IMAGE_TAG = "${env.BUILD_NUMBER}" 
-        DOCKER_IMAGE = "yourdockerhubusername/sample1:${IMAGE_TAG}" 
     }
+
     triggers {
         pollSCM('H * * * *')
     }
+
     stages {
         stage('Checkout') {
             steps {
@@ -94,46 +95,39 @@ pipeline {
         }
 
         stage('Docker Build and Push') {
-           when {
-        allOf {
-            expression { return currentBuild.currentResult == 'SUCCESS' }
-            not { branch 'playground' }
-        }
-    }
-    steps {
-        swhen {
-        allOf {
-            expression { return currentBuild.currentResult == 'SUCCESS' }
-            not { branch 'playground' }
-        }
-    }
-    steps {
-        script {
-            // Determine branch type
-            def imageName = ''
-            def imageVersion = ''
-
-            if (env.BRANCH_NAME == 'release') {
-                imageName = 'calculator'
-                imageVersion = '1.0'
-            } else if (env.BRANCH_NAME.startsWith('feature/')) {
-                imageName = 'calculator-feature'
-                imageVersion = '0.1'
-            } else {
-                error "Branch '${env.BRANCH_NAME}' is not supported for image creation."
+            when {
+                allOf {
+                    expression { return currentBuild.currentResult == 'SUCCESS' }
+                    not { branch 'playground' }
+                }
             }
+            steps {
+                script {
+                    def imageName = ''
+                    def imageVersion = ''
 
-            def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
-            echo "Building and pushing Docker image: ${fullImageName}"
+                    if (env.BRANCH_NAME == 'release') {
+                        imageName = 'calculator'
+                        imageVersion = '1.0'
+                    } else if (env.BRANCH_NAME.startsWith('feature/')) {
+                        imageName = 'calculator-feature'
+                        imageVersion = '0.1'
+                    } else {
+                        error "Branch '${env.BRANCH_NAME}' is not supported for image creation."
+                    }
 
-            def image = docker.build(fullImageName)
+                    def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
+                    echo "Building and pushing Docker image: ${fullImageName}"
 
-            docker.withRegistry('http://localhost:5000') {
-                image.push()
+                    def image = docker.build(fullImageName)
+
+                    docker.withRegistry('http://localhost:5000') {
+                        image.push()
+                    }
+                }
             }
         }
     }
-    
 
     post {
         success {
@@ -144,3 +138,4 @@ pipeline {
         }
     }
 }
+
