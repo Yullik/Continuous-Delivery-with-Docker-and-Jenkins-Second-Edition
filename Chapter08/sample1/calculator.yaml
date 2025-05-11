@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: calculator-deployment
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: calculator
@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: calculator
-          image: calculator:latest
+          image: localhost:5000/yullik/calculator:latest
           ports:
             - containerPort: 8080
 ---
@@ -29,4 +29,5 @@ spec:
     - protocol: TCP
       port: 8080
       targetPort: 8080
+
 
