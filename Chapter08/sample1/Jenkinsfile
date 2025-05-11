@@ -41,9 +41,6 @@ pipeline {
         }
 
         stage('Code coverage') {
-            when {
-                changeset '**/*.java' 
-            }
             steps {
                     dir("${WORKSPACE_JAVA}") {  
                     sh "${GRADLEW_PATH} jacocoTestReport"  
@@ -53,9 +50,6 @@ pipeline {
         }
 
         stage('Static code analysis') {
-            when {
-                changeset '**/*.java'  
-            }
             steps {
                     dir("${WORKSPACE_JAVA}") {  
                     sh "${GRADLEW_PATH} checkstyleMain" 
@@ -64,9 +58,6 @@ pipeline {
         }
 
         stage('Jacoco Checkstyle Test') {
-            when {
-                changeset '**/*.java'  
-            }
             steps {
                     dir("${WORKSPACE_JAVA}") {  
                     sh "${GRADLEW_PATH} checkstyleTest"  
@@ -116,16 +107,7 @@ pipeline {
                 }
             }
         }
-        stage('Deploy to staging') {
-            steps {
-                //sh "kubectl config use-context staging"  // Use Kubernetes staging context
-                sh 'kubectl config set-credentials jenkins-user --token="0123456789abcdef"'
-                sh 'kubectl config set-context jenkins-context --cluster=docker-desktop --user=jenkins-user --namespace=default'
-                sh 'kubectl config use-context jenkins-context'
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
-            }
-        }
+        
 
         stage('Acceptance test') {
             steps {
@@ -134,16 +116,6 @@ pipeline {
             }
         }
 
-        stage('Release') {
-            steps {
-                //sh "kubectl config use-context production"  // Use Kubernetes production context
-                sh 'kubectl config set-credentials jenkins-user --token="0123456789abcdef"'
-                sh 'kubectl config set-context jenkins-context --cluster=docker-desktop --user=jenkins-user --namespace=default'
-                sh 'kubectl config use-context jenkins-context'
-                sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
-                sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
-            }
-        }
 
         stage('Smoke test') {
             steps {
