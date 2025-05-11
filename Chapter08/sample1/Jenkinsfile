@@ -4,7 +4,6 @@ pipeline {
         GRADLEW_PATH = "./gradlew"  
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
-        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  //added credentials
     }
     triggers {
         pollSCM('* * * * *') 
