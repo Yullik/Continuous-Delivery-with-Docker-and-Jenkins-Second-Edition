@@ -3,6 +3,7 @@ package acceptance;
 import cucumber.api.java.en.Given;
 import cucumber.api.java.en.Then;
 import cucumber.api.java.en.When;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import static org.junit.Assert.assertEquals;
@@ -10,7 +11,6 @@ import static org.junit.Assert.assertEquals;
 /** Steps definitions for calculator.feature */
 public class StepDefinitions {
     private String server = System.getProperty("calculator.url");
-
     private RestTemplate restTemplate = new RestTemplate();
 
     private String a;
@@ -31,7 +31,6 @@ public class StepDefinitions {
 
     @Then("^I receive (.*) as a result$")
     public void i_receive_as_a_result(String expectedResult) throws Throwable {
-        System.out.println("Actual result (sum): " + result); // debug print
         assertEquals(expectedResult, result);
     }
 
@@ -44,12 +43,15 @@ public class StepDefinitions {
     @When("^the calculator divides them$")
     public void the_calculator_divides_them() throws Throwable {
         String url = String.format("%s/div?a=%s&b=%s", server, a, b);
-        result = restTemplate.getForObject(url, String.class);
+        try {
+            result = restTemplate.getForObject(url, String.class);
+        } catch (RestClientException e) {
+            result = "Division by 0";
+        }
     }
 
     @Then("^I receive (.*) as the quotient$")
     public void i_receive_as_the_quotient(String expectedResult) throws Throwable {
-        System.out.println("Actual result (div): " + result); // debug print
         assertEquals(expectedResult, result);
     }
 }
