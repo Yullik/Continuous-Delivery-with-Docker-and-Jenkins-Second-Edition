@@ -13,4 +13,5 @@ Feature: Calculator
   Scenario: Divide by zero
     Given I have dividend and divisor: 6 and 0
     When the calculator divides them
-    Then I receive Cannot divide by zero as the quotient
+    Then I receive Division by 0 as the quotient
+
