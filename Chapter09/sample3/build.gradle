@@ -66,3 +66,9 @@ flyway {
 	url = 'jdbc:h2:file:/tmp/calculator'
 	user = 'sa'
 }
+
+tasks.withType(Test) {
+	if (name == 'acceptanceTest') {
+		jacoco.enabled = false
+	}
+}
