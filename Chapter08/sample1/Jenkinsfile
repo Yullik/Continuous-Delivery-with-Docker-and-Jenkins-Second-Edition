@@ -95,39 +95,43 @@ pipeline {
         }
 
         stage('Docker Build and Push') {
-            when {
-                allOf {
-                    expression { return currentBuild.currentResult == 'SUCCESS' }
-                    not { branch 'playground' }
+    when {
+        allOf {
+            expression { return currentBuild.currentResult == 'SUCCESS' }
+            not { branch 'playground' }
+            not { branch 'main' }
+            not { changeRequest() } // Skip pull requests like PR-8
+        }
+    }
+        steps {
+            script {
+                def branchName = sh(script: "git rev-parse --abbrev-ref HEAD", returnStdout: true).trim()
+                def imageName = ''
+                def imageVersion = ''
+    
+                if (branchName == 'release') {
+                    imageName = 'calculator'
+                    imageVersion = '1.0'
+                } else if (branchName.startsWith('feature/')) {
+                    imageName = 'calculator-feature'
+                    imageVersion = '0.1'
+                } else {
+                    error "Branch '${branchName}' is not supported for image creation."
                 }
-            }
-            steps {
-                script {
-                    def imageName = ''
-                    def imageVersion = ''
-
-                    if (env.BRANCH_NAME == 'release') {
-                        imageName = 'calculator'
-                        imageVersion = '1.0'
-                    } else if (env.BRANCH_NAME.startsWith('feature/')) {
-                        imageName = 'calculator-feature'
-                        imageVersion = '0.1'
-                    } else {
-                        error "Branch '${env.BRANCH_NAME}' is not supported for image creation."
-                    }
-
-                    def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
-                    echo "Building and pushing Docker image: ${fullImageName}"
-
-                    def image = docker.build(fullImageName)
-
-                    docker.withRegistry('http://localhost:5000') {
-                        image.push()
-                    }
+    
+                def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
+                echo "Building and pushing Docker image: ${fullImageName}"
+    
+                def image = docker.build(fullImageName)
+    
+                docker.withRegistry('http://localhost:5000') {
+                    image.push()
                 }
             }
         }
     }
+
+}
 
     post {
         success {
