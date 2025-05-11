@@ -7,7 +7,7 @@ This is the code repository for [Continuous Delivery with Docker and Jenkins Sec
 **Create secure applications by building complete CI/CD pipelines**????
 
 ## What is this book about?
-The combination of Docker and Jenkins will help you scale up your builds, automate tasks and speed up Jenkins performance with the benefits of Docker containerization. This book will help you speed up software releases using fewer resources, improve quality with acceptance tests integrated into Jenkins builds and scale platform with Kubernetes.
+The combination of Docker and Jenkins will help you scale up your builds, automate tasks and speed up Jenkins performance with the benefits of Docker containerization. This book will help you speed up software releases using fewer resources, improve quality with acceptance tests integrated into Jenkins builds and scale platform with Kubernetes. //
 
 This book covers the following exciting features:
 * Get to grips with docker fundamentals and how to dockerize an application for the CD process
