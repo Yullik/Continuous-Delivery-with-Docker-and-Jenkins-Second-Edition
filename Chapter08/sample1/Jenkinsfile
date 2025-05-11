@@ -4,10 +4,10 @@ pipeline {
         GRADLEW_PATH = "./gradlew"  
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
-        //
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  // added credentials
     }
     triggers {
-        pollSCM('* * * * *') 
+        pollSCM('* * * * *')  // Trigger the pipeline on changes in the repository
     }
     stages {
         stage('Checkout') {
@@ -18,70 +18,80 @@ pipeline {
 
         stage('Prepare Gradle Wrapper') {
             steps {
-                dir("${WORKSPACE_JAVA}"){
-                sh "chmod +x ${GRADLEW_PATH}"  
+                dir("${WORKSPACE_JAVA}") {
+                    sh "chmod +x ${GRADLEW_PATH}"  // Making Gradle wrapper executable
                 }
             }
         }
 
         stage('Build') {
             steps {
-                    dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"  
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} build"  // Run Gradle build
                 }
             }
         }
 
         stage('Unit test') {
+            when {
+                not { branch 'main' }  // Only runs on non-'main' branches
+            }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} test" 
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} test"  // Execute unit tests
                 }
             }
         }
 
         stage('Code coverage') {
+            when {
+                branch 'main'  // Only runs on the 'main' branch
+            }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} jacocoTestReport"  
-                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification" 
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} jacocoTestReport"  // Generate Jacoco test report
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
                 }
             }
         }
 
         stage('Static code analysis') {
+            when {
+                not { branch 'main' }  // Only runs on non-'main' branches
+            }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} checkstyleMain" 
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} checkstyleMain"  // Run checkstyle analysis
                 }
             }
         }
 
         stage('Jacoco Checkstyle Test') {
+            when {
+                not { branch 'main' }  // Only runs on non-'main' branches
+            }
             steps {
-                    dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} checkstyleTest"  
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} checkstyleTest"  // Run checkstyle on tests
                     publishHTML(target: [
                         reportDir: 'build/reports/checkstyle',  
                         reportFiles: 'main.html',  
                         reportName: "Jacoco Checkstyle"
-                    ])  
+                    ])  // Publish checkstyle report
                 }
             }
         }
 
         stage('Package') {
             steps {
-                    dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"
-                 }
+                dir("${WORKSPACE_JAVA}") {  
+                    sh "${GRADLEW_PATH} build"  // Package the application
+                }
             }
         }
     }
 
-        
-
-        post {
+    post {
         success {
             echo "pipeline ran perfectly"
         }
