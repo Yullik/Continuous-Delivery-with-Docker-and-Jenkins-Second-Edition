@@ -118,7 +118,7 @@ pipeline {
         }
         stage('Deploy to staging') {
             steps {
-                sh "kubectl config use-context staging"  // Use Kubernetes staging context
+                //sh "kubectl config use-context staging"  // Use Kubernetes staging context
                 sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
                 sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
             }
@@ -133,7 +133,7 @@ pipeline {
 
         stage('Release') {
             steps {
-                sh "kubectl config use-context production"  // Use Kubernetes production context
+                //sh "kubectl config use-context production"  // Use Kubernetes production context
                 sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast to production
                 sh "kubectl apply -f calculator.yaml"  // Deploy Calculator to production
             }
