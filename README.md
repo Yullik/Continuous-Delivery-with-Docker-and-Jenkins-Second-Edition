@@ -11,7 +11,7 @@ The combination of Docker and Jenkins will help you scale up your builds, automa
 
 This book covers the following exciting features:
 * Get to grips with docker fundamentals and how to dockerize an application for the CD process
-* Learn how to use Jenkins on the Cloud environments
+* Learn how to use Jenkins on the Cloud environments//
 * Scale a pool of Docker servers using Kubernetes
 * Create multi-container applications using Docker Compose
 * Write acceptance tests using Cucumber and run them in the Docker ecosystem using Jenkins
