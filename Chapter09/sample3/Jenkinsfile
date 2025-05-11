@@ -1,0 +1,53 @@
+pipeline {
+    agent { label 'docker-agent' }
+
+    environment {
+        DOCKER_IMAGE = 'localhost:5000/calculator:1.0'
+    }
+
+    stages {
+        stage('Deploy Services') {
+            steps {
+                script {
+                    sh 'kubectl apply -f hazelcast.yaml'
+                    sh 'kubectl apply -f calculator.yaml'
+                    // Give services time to initialize
+                    sleep(time: 20, unit: 'SECONDS')
+                }
+            }
+        }
+
+        stage('Acceptance Test - Curl') {
+            steps {
+                script {
+                    echo 'Testing sum...'
+                    sh "test \$(curl -s calculator-service:8080/sum?a=6\\&b=2) -eq 8 && echo 'pass' || echo 'fail'"
+
+                    echo 'Testing division...'
+                    sh "test \$(curl -s calculator-service:8080/div?a=6\\&b=2) -eq 3 && echo 'pass' || echo 'fail'"
+
+                    echo 'Testing divide by 0 (should fail with error)...'
+                    sh """
+                        RESPONSE=\$(curl -s calculator-service:8080/div?a=6\\&b=0)
+                        echo "Response: \$RESPONSE"
+                        echo "\$RESPONSE" | grep -i "error"
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up Kubernetes deployments...'
+            sh 'kubectl delete -f calculator.yaml || true'
+            sh 'kubectl delete -f hazelcast.yaml || true'
+        }
+        success {
+            echo 'Pipeline passed.'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
+}
