@@ -1,0 +1,56 @@
+pipeline {
+    agent { label 'docker-agent' }
+
+    environment {
+        KUBECONFIG_PATH = '/var/jenkins_home/.kube/config'
+        WORKSPACE_SAMPLE1 = "${WORKSPACE}/Chapter08/sample1"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Apply Kubernetes Resources') {
+            steps {
+                dir("${WORKSPACE_SAMPLE1}") {
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml --validate=false"
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml --validate=false"
+                    sh 'sleep 10'
+                }
+            }
+        }
+
+        stage('Add calculator-service to /etc/hosts') {
+            steps {
+                sh '''
+                CALC_IP=$(KUBECONFIG=${KUBECONFIG_PATH} kubectl get service calculator-service -o jsonpath='{.spec.clusterIP}')
+                echo "$CALC_IP calculator-service" >> /etc/hosts
+                '''
+            }
+        }
+
+        stage('Run curl test') {
+            steps {
+                sh 'curl "http://calculator-service:8080/sum?a=6&b=2"'
+            }
+        }
+
+        stage('Verify Replicas') {
+            steps {
+                sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl get deployment calculator-deployment"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Staging deployment verified.'
+        }
+        failure {
+            echo 'Staging pipeline failed.'
+        }
+    }
+}
