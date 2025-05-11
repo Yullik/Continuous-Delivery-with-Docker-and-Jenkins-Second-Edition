@@ -22,6 +22,16 @@ pipeline {
             }
         }
 
+        stage('Deploy Calculator and Hazelcast') {
+        steps {
+            dir('Chapter08/sample1') {
+                sh 'kubectl apply -f hazelcast.yaml'
+                sh 'kubectl apply -f calculator.yaml'
+                sh 'sleep 20' // wait for the pods to be ready
+            }
+        }
+    }
+
         stage('Run Acceptance Tests') {
             steps {
                 dir("${WORKDIR}") {
