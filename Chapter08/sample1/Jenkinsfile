@@ -94,53 +94,43 @@ pipeline {
             }
         }
 
-      
-    stage('Docker Build and Push') {
-    when {
-        allOf {
-            expression { return currentBuild.currentResult == 'SUCCESS' }
-            not { branch 'playground' }
-            not { branch 'main' }
-            not { changeRequest() } // skip PRs like PR-8
-        }
-    }
-           stage('Docker Build and Push') {
-    when {
-        allOf {
-            expression { return currentBuild.currentResult == 'SUCCESS' }
-            not { branch 'playground' }
-            not { branch 'main' }
-            not { changeRequest() } // skip PRs like PR-8
-        }
-    }
-        steps {
-            script {
-                def branchName = env.BRANCH_NAME
-                def imageName = ''
-                def imageVersion = ''
-    
-                if (branchName == 'release') {
-                    imageName = 'calculator'
-                    imageVersion = '1.0'
-                } else if (branchName.startsWith('feature')) {
-                    imageName = 'calculator-feature'
-                    imageVersion = '0.1'
-                } else {
-                    error "Branch '${branchName}' is not supported for image creation."
+        stage('Docker Build and Push') {
+            when {
+                allOf {
+                    expression { return currentBuild.currentResult == 'SUCCESS' }
+                    not { branch 'playground' }
+                    not { branch 'main' }
+                    not { changeRequest() } // skip PRs like PR-8
                 }
-    
-                def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
-                echo "Building and pushing Docker image: ${fullImageName}"
-    
-                def image = docker.build(fullImageName)
-    
-                docker.withRegistry('http://localhost:5000') {
-                    image.push()
+            }
+            steps {
+                script {
+                    def branchName = env.BRANCH_NAME
+                    def imageName = ''
+                    def imageVersion = ''
+
+                    if (branchName == 'release') {
+                        imageName = 'calculator'
+                        imageVersion = '1.0'
+                    } else if (branchName.startsWith('feature')) {
+                        imageName = 'calculator-feature'
+                        imageVersion = '0.1'
+                    } else {
+                        error "Branch '${branchName}' is not supported for image creation."
+                    }
+
+                    def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
+                    echo "Building and pushing Docker image: ${fullImageName}"
+
+                    def image = docker.build(fullImageName)
+
+                    docker.withRegistry('http://localhost:5000') {
+                        image.push()
+                    }
                 }
             }
         }
     }
-}
 
     post {
         success {
@@ -151,4 +141,5 @@ pipeline {
         }
     }
 }
+
 
