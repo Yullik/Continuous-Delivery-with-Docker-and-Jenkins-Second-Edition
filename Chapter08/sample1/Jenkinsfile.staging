@@ -2,8 +2,8 @@ pipeline {
     agent { label 'docker-agent' }
 
     environment {
-        KUBECONFIG_PATH = '/var/jenkins_home/.kube/config'
-        WORKSPACE_SAMPLE1 = "${WORKSPACE}/Chapter08/sample1"
+        KUBECONFIG_PATH = "/var/jenkins_home/.kube/config"
+        WORKSPACE_SAMPLE1 = "Chapter08/sample1"
     }
 
     stages {
@@ -18,39 +18,39 @@ pipeline {
                 dir("${WORKSPACE_SAMPLE1}") {
                     sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml --validate=false"
                     sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml --validate=false"
-                    sh 'sleep 10'
+                    sh "sleep 10"
                 }
             }
         }
 
-        stage('Add calculator-service to /etc/hosts') {
+        stage('Resolve calculator-service IP') {
             steps {
-                sh '''
-                CALC_IP=$(KUBECONFIG=${KUBECONFIG_PATH} kubectl get service calculator-service -o jsonpath='{.spec.clusterIP}')
-                echo "$CALC_IP calculator-service" >> /etc/hosts
-                '''
+                script {
+                    env.CALC_IP = sh(
+                        script: "KUBECONFIG=${KUBECONFIG_PATH} kubectl get service calculator-service -o jsonpath={.spec.clusterIP}",
+                        returnStdout: true
+                    ).trim()
+                }
             }
         }
 
         stage('Run curl test') {
             steps {
-                sh 'curl "http://calculator-service:8080/sum?a=6&b=2"'
+                sh 'curl "$CALC_IP:8080/sum?a=2&b=3"'
             }
         }
 
         stage('Verify Replicas') {
             steps {
-                sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl get deployment calculator-deployment"
+                sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl get pods"
             }
         }
     }
 
     post {
-        success {
-            echo 'Staging deployment verified.'
-        }
-        failure {
-            echo 'Staging pipeline failed.'
+        always {
+            echo "Staging pipeline finished."
         }
     }
 }
+
