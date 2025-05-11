@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hazelcast
-  labels:
-    app: hazelcast
 spec:
   replicas: 1
   selector:
@@ -15,13 +13,11 @@ spec:
         app: hazelcast
     spec:
       containers:
-      - name: hazelcast
-        image: hazelcast/hazelcast:3.12
-        ports:
-        - containerPort: 5701
-
+        - name: hazelcast
+          image: hazelcast/hazelcast:latest
+          ports:
+            - containerPort: 5701
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -30,4 +26,6 @@ spec:
   selector:
     app: hazelcast
   ports:
-  - port: 5701
+    - protocol: TCP
+      port: 5701
+      targetPort: 5701
