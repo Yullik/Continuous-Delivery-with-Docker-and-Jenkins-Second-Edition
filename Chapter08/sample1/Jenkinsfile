@@ -4,11 +4,11 @@ pipeline {
         GRADLEW_PATH = "./gradlew"
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
-        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  
-        DOCKER_REGISTRY = 'docker.io'  
+        DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
+        DOCKER_REGISTRY = 'docker.io'
     }
     triggers {
-        pollSCM('H * * * *')  
+        pollSCM('H * * * *')
     }
     stages {
         stage('Checkout') {
@@ -20,73 +20,73 @@ pipeline {
         stage('Prepare Gradle Wrapper') {
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "chmod +x ${GRADLEW_PATH}"  
+                    sh "chmod +x ${GRADLEW_PATH}"
                 }
             }
         }
 
         stage('Build') {
             steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"  
+                dir("${WORKSPACE_JAVA}") {
+                    sh "${GRADLEW_PATH} build"
                 }
             }
         }
 
         stage('Unit test') {
             when {
-                not { branch 'main' }  
+                not { branch 'main' }
             }
             steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} test" 
+                dir("${WORKSPACE_JAVA}") {
+                    sh "${GRADLEW_PATH} test"
                 }
             }
         }
 
         stage('Code coverage') {
             when {
-                branch 'main' 
+                branch 'main'
             }
             steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} jacocoTestReport"  
-                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  
+                dir("${WORKSPACE_JAVA}") {
+                    sh "${GRADLEW_PATH} jacocoTestReport"
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"
                 }
             }
         }
 
         stage('Static code analysis') {
             when {
-                not { branch 'main' }  
+                not { branch 'main' }
             }
             steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} checkstyleMain"  
+                dir("${WORKSPACE_JAVA}") {
+                    sh "${GRADLEW_PATH} checkstyleMain"
                 }
             }
         }
 
         stage('Jacoco Checkstyle Test') {
             when {
-                not { branch 'main' } 
+                not { branch 'main' }
             }
             steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} checkstyleTest"  
+                dir("${WORKSPACE_JAVA}") {
+                    sh "${GRADLEW_PATH} checkstyleTest"
                     publishHTML(target: [
-                        reportDir: 'build/reports/checkstyle',  
-                        reportFiles: 'main.html',  
+                        reportDir: 'build/reports/checkstyle',
+                        reportFiles: 'main.html',
                         reportName: "Jacoco Checkstyle"
-                    ])  
+                    ])
                 }
             }
         }
 
         stage('Package') {
             steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"  
+                dir("${WORKSPACE_JAVA}") {
+                    sh "${GRADLEW_PATH} build"
                 }
             }
         }
