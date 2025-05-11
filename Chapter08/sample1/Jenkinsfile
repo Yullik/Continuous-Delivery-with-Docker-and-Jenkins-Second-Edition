@@ -6,6 +6,8 @@ pipeline {
         WORKSPACE_JAVA = "./Chapter08/sample1/"
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'
         DOCKER_REGISTRY = 'docker.io'
+        IMAGE_TAG = "${env.BUILD_NUMBER}" 
+        DOCKER_IMAGE = "yourdockerhubusername/sample1:${IMAGE_TAG}" 
     }
     triggers {
         pollSCM('H * * * *')
@@ -92,36 +94,46 @@ pipeline {
         }
 
         stage('Docker Build and Push') {
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh """
-                            # Login to Docker Hub using stored credentials
-                            echo "\$DOCKER_PASSWORD" | docker login --username \$DOCKER_USERNAME --password-stdin
+           when {
+        allOf {
+            expression { return currentBuild.currentResult == 'SUCCESS' }
+            not { branch 'playground' }
+        }
+    }
+    steps {
+        swhen {
+        allOf {
+            expression { return currentBuild.currentResult == 'SUCCESS' }
+            not { branch 'playground' }
+        }
+    }
+    steps {
+        script {
+            // Determine branch type
+            def imageName = ''
+            def imageVersion = ''
 
-                            # Set image name and version depending on the branch
-                            if [ "${GIT_BRANCH}" == "main" ]; then
-                                IMAGE_NAME="calculator"
-                                IMAGE_TAG="1.0"
-                            else
-                                IMAGE_NAME="calculator-feature"
-                                IMAGE_TAG="0.1"
-                            fi
+            if (env.BRANCH_NAME == 'release') {
+                imageName = 'calculator'
+                imageVersion = '1.0'
+            } else if (env.BRANCH_NAME.startsWith('feature/')) {
+                imageName = 'calculator-feature'
+                imageVersion = '0.1'
+            } else {
+                error "Branch '${env.BRANCH_NAME}' is not supported for image creation."
+            }
 
-                            # Build the Docker image
-                            docker build -t \$IMAGE_NAME:${IMAGE_TAG} .
+            def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
+            echo "Building and pushing Docker image: ${fullImageName}"
 
-                            # Tag the image for pushing
-                            docker tag \$IMAGE_NAME:${IMAGE_TAG} \$DOCKER_REGISTRY/\$DOCKER_USERNAME/\$IMAGE_NAME:${IMAGE_TAG}
+            def image = docker.build(fullImageName)
 
-                            # Push the image to Docker Hub
-                            docker push \$DOCKER_REGISTRY/\$DOCKER_USERNAME/\$IMAGE_NAME:${IMAGE_TAG}
-                        """
-                    }
-                }
+            docker.withRegistry('http://localhost:5000') {
+                image.push()
             }
         }
     }
+    
 
     post {
         success {
