@@ -119,8 +119,8 @@ pipeline {
         stage('Deploy to staging') {
             steps {
                 //sh "kubectl config use-context staging"  // Use Kubernetes staging context
-                sh 'kubectl config set-credentials docker-desktop --username=docker-desktop --password=""'
-                sh 'kubectl config set-context docker-desktop --cluster=docker-desktop --user=docker-desktop --namespace=default'
+                //sh 'kubectl config set-credentials docker-desktop --username=docker-desktop --password=""'
+                //sh 'kubectl config set-context docker-desktop --cluster=docker-desktop --user=docker-desktop --namespace=default'
                 sh 'kubectl config use-context docker-desktop'
                 sh "kubectl apply -f hazelcast.yaml"  // Deploy Hazlecast
                 sh "kubectl apply -f calculator.yaml"  // Deploy Calculator
