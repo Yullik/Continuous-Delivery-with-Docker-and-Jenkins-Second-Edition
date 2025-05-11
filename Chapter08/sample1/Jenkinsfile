@@ -122,10 +122,13 @@ pipeline {
                     def fullImageName = "localhost:5000/${imageName}:${imageVersion}"
                     echo "Building and pushing Docker image: ${fullImageName}"
 
-                    def image = docker.build(fullImageName)
+                    // Fix: change context to where Dockerfile actually is
+                    dir("${WORKSPACE_JAVA}") {
+                        def image = docker.build(fullImageName)
 
-                    docker.withRegistry('http://localhost:5000') {
-                        image.push()
+                        docker.withRegistry('http://localhost:5000') {
+                            image.push()
+                        }
                     }
                 }
             }
