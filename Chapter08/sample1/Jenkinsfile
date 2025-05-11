@@ -80,8 +80,7 @@ pipeline {
 
         
 
-        
-    post {
+        post {
         success {
             echo "pipeline ran perfectly"
         }
@@ -90,4 +89,4 @@ pipeline {
         }
     }
 }
-
+}
