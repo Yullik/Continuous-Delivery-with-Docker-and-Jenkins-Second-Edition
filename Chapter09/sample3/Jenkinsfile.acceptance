@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'dlambrig/gradle-agent:latest'
-            args '-u root -v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/.kube:/var/jenkins_home/.kube'
-        }
-    }
+    agent none
 
     environment {
         KUBECONFIG_PATH = '/var/jenkins_home/.kube/config'
@@ -13,62 +8,66 @@ pipeline {
     }
 
     stages {
-        stage('Prepare Gradle Wrapper') {
-            steps {
-                dir("${WORKSPACE_SAMPLE3}") {
-                    sh 'chmod +x ./gradlew'
+        stage('Run in Docker Agent') {
+            agent {
+                docker {
+                    image 'dlambrig/gradle-agent:latest'
+                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock -v /var/jenkins_home/.kube:/var/jenkins_home/.kube'
                 }
             }
-        }
 
-        stage('Deploy Calculator and Hazelcast') {
-            steps {
-                dir("${WORKSPACE_SAMPLE1}") {
-                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml"
-                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml"
-                    sh 'sleep 20'
+            stages {
+                stage('Prepare Gradle Wrapper') {
+                    steps {
+                        dir("${WORKSPACE_SAMPLE3}") {
+                            sh 'chmod +x ./gradlew'
+                        }
+                    }
+                }
+
+                stage('Deploy Calculator and Hazelcast') {
+                    steps {
+                        dir("${WORKSPACE_SAMPLE1}") {
+                            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml --validate=false"
+                            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml --validate=false"
+                            sh 'sleep 20'
+                        }
+                    }
+                }
+
+                stage('Run Acceptance Tests') {
+                    steps {
+                        dir("${WORKSPACE_SAMPLE3}") {
+                            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl port-forward service/calculator-service 8765:8080 &"
+                            sh 'sleep 5'
+                            sh "./gradlew acceptanceTest -Dcalculator.url=http://localhost:8765"
+                        }
+                    }
+                }
+
+                stage('Publish Acceptance Test Report') {
+                    steps {
+                        publishHTML([
+                            allowMissing: false,
+                            alwaysLinkToLastBuild: true,
+                            keepAll: true,
+                            reportDir: "${WORKSPACE_SAMPLE3}/build/reports/tests/acceptanceTest",
+                            reportFiles: 'index.html',
+                            reportName: 'Acceptance Test Report'
+                        ])
+                    }
                 }
             }
-        }
 
-        stage('Run Acceptance Tests') {
-            steps {
-                dir("${WORKSPACE_SAMPLE3}") {
-                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl port-forward service/calculator-service 8765:8080 &"
-                    sh 'sleep 5'
-                    sh './gradlew acceptanceTest -Dcalculator.url=http://localhost:8765'
-                }
-            }
-        }
-
-        stage('Publish Acceptance Test Report') {
-            when {
-                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
-            }
-            steps {
-                publishHTML([
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'Chapter09/sample3/build/reports/tests/acceptanceTest',
-                    reportFiles: 'index.html',
-                    reportName: 'Acceptance Test Report'
-                ])
-            }
-        }
-    }
-
-    post {
-        always {
-            echo 'Cleaning up...'
-            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/hazelcast.yaml || true"
-            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/calculator.yaml || true"
-            sh "pkill -f 'kubectl port-forward' || true"
-            script {
-                if (currentBuild.result == 'SUCCESS') {
-                    echo 'Acceptance tests passed.'
-                } else {
-                    echo 'Acceptance tests failed.'
+            post {
+                always {
+                    echo 'Cleaning up...'
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f Chapter08/sample1/hazelcast.yaml || true"
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f Chapter08/sample1/calculator.yaml || true"
+                    sh "pkill -f 'kubectl port-forward' || true"
+                    script {
+                        echo currentBuild.result == 'SUCCESS' ? 'Acceptance tests passed.' : 'Acceptance tests failed.'
+                    }
                 }
             }
         }
