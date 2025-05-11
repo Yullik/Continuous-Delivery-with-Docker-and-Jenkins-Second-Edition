@@ -31,6 +31,7 @@ public class StepDefinitions {
 
     @Then("^I receive (.*) as a result$")
     public void i_receive_as_a_result(String expectedResult) throws Throwable {
+        System.out.println("Actual result (sum): " + result); // debug print
         assertEquals(expectedResult, result);
     }
 
@@ -48,7 +49,7 @@ public class StepDefinitions {
 
     @Then("^I receive (.*) as the quotient$")
     public void i_receive_as_the_quotient(String expectedResult) throws Throwable {
+        System.out.println("Actual result (div): " + result); // debug print
         assertEquals(expectedResult, result);
     }
 }
-
