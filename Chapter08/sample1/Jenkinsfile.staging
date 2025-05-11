@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                git url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git', branch: 'main'
             }
         }
 
@@ -18,39 +18,35 @@ pipeline {
                 dir("${WORKSPACE_SAMPLE1}") {
                     sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml --validate=false"
                     sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml --validate=false"
-                    sh "sleep 10"
-                }
-            }
-        }
-
-        stage('Resolve calculator-service IP') {
-            steps {
-                script {
-                    env.CALC_IP = sh(
-                        script: "KUBECONFIG=${KUBECONFIG_PATH} kubectl get service calculator-service -o jsonpath={.spec.clusterIP}",
-                        returnStdout: true
-                    ).trim()
+                    sh 'sleep 10'
                 }
             }
         }
 
         stage('Run curl test') {
             steps {
-                sh 'curl "$CALC_IP:8080/sum?a=2&b=3"'
+                dir("${WORKSPACE_SAMPLE1}") {
+                    script {
+                        // Start port-forward in background
+                        sh "nohup kubectl --kubeconfig=${KUBECONFIG_PATH} port-forward service/calculator-service 8765:8080 &"
+                        sh 'sleep 5'
+                        // Test calculator via localhost
+                        sh 'curl http://localhost:8765/sum?a=2\\&b=3'
+                    }
+                }
             }
         }
 
         stage('Verify Replicas') {
             steps {
-                sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl get pods"
+                sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl get deployment calculator-deployment -o=jsonpath='{.status.replicas}'"
             }
         }
     }
 
     post {
         always {
-            echo "Staging pipeline finished."
+            echo 'Staging pipeline finished.'
         }
     }
 }
-
