@@ -4,6 +4,7 @@ pipeline {
         GRADLEW_PATH = "./gradlew"  
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
+        //
     }
     triggers {
         pollSCM('* * * * *') 
