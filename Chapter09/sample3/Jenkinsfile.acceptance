@@ -1,0 +1,50 @@
+pipeline {
+    agent { label 'docker-agent' }
+
+    environment {
+        GRADLEW_PATH = './gradlew'
+        WORKDIR = 'Chapter09/sample3'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
+            }
+        }
+
+        stage('Prepare Gradle Wrapper') {
+            steps {
+                dir(WORKDIR) {
+                    sh 'chmod +x gradlew'
+                }
+            }
+        }
+
+        stage('Acceptance Test') {
+            steps {
+                dir(WORKDIR) {
+                    sh './gradlew acceptanceTest -Dcalculator.url=http://calculator-service:8080'
+                }
+            }
+        }
+
+        stage('Publish Report') {
+            steps {
+                dir(WORKDIR) {
+                    publishHTML(target: [
+                        reportDir: 'build/reports/tests/acceptanceTest',
+                        reportFiles: 'index.html',
+                        reportName: 'Acceptance Test Report'
+                    ])
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline completed.'
+        }
+    }
+}
