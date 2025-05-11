@@ -2,14 +2,14 @@ pipeline {
     agent {
         docker {
             image 'dlambrig/gradle-agent:latest'
-            args '-u root --network host -v /var/run/docker.sock:/var/run/docker.sock'
+            args '-u root -v /var/run/docker.sock:/var/run/docker.sock -v /home/jenkins/.kube:/var/jenkins_home/.kube'
         }
     }
 
     environment {
+        KUBECONFIG_PATH = '/var/jenkins_home/.kube/config'
         WORKSPACE_SAMPLE1 = 'Chapter08/sample1'
         WORKSPACE_SAMPLE3 = 'Chapter09/sample3'
-        KUBECONFIG_PATH = '/var/jenkins_home/.kube/config'
     }
 
     stages {
@@ -47,6 +47,9 @@ pipeline {
             }
             steps {
                 publishHTML([
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
                     reportDir: 'Chapter09/sample3/build/reports/tests/acceptanceTest',
                     reportFiles: 'index.html',
                     reportName: 'Acceptance Test Report'
@@ -58,15 +61,16 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
-            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/hazelcast.yaml"
-            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/calculator.yaml"
+            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/hazelcast.yaml || true"
+            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/calculator.yaml || true"
             sh "pkill -f 'kubectl port-forward' || true"
-        }
-        success {
-            echo 'Acceptance tests passed.'
-        }
-        failure {
-            echo 'Acceptance tests failed.'
+            script {
+                if (currentBuild.result == 'SUCCESS') {
+                    echo 'Acceptance tests passed.'
+                } else {
+                    echo 'Acceptance tests failed.'
+                }
+            }
         }
     }
 }
