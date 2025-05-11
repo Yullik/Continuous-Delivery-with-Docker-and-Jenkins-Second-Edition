@@ -2,9 +2,9 @@ pipeline {
     agent { label 'docker-agent' }
 
     environment {
-        WORKDIR = "Chapter09/sample3"
-        GRADLEW = "./gradlew"
-        REPORT_DIR = "build/reports/tests/acceptanceTest"
+        WORKSPACE_SAMPLE3 = "Chapter09/sample3"
+        WORKSPACE_SAMPLE1 = "Chapter08/sample1"
+        KUBECONFIG_PATH = "/var/jenkins_home/.kube/config"
     }
 
     stages {
@@ -16,26 +16,29 @@ pipeline {
 
         stage('Prepare Gradle Wrapper') {
             steps {
-                dir("${WORKDIR}") {
-                    sh "chmod +x ${GRADLEW}"
+                dir("${WORKSPACE_SAMPLE3}") {
+                    sh 'chmod +x ./gradlew'
                 }
             }
         }
 
         stage('Deploy Calculator and Hazelcast') {
-        steps {
-            dir('Chapter08/sample1') {
-                sh 'KUBECONFIG=/var/jenkins_home/.kube/config kubectl apply -f hazelcast.yaml'
-                sh 'KUBECONFIG=/var/jenkins_home/.kube/config kubectl apply -f calculator.yaml'
-                sh 'sleep 20' // wait for the pods to be ready
+            steps {
+                dir("${WORKSPACE_SAMPLE1}") {
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f hazelcast.yaml"
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl apply -f calculator.yaml"
+                    sh 'sleep 20'
+                }
             }
         }
-    }
 
         stage('Run Acceptance Tests') {
             steps {
-                dir("${WORKDIR}") {
-                    sh "${GRADLEW} acceptanceTest -Dcalculator.url=http://calculator-service:8080"
+                dir("${WORKSPACE_SAMPLE3}") {
+                    // Port-forward the calculator service to localhost
+                    sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl port-forward service/calculator-service 8765:8080 &"
+                    sh 'sleep 5'
+                    sh './gradlew acceptanceTest -Dcalculator.url=http://localhost:8765'
                 }
             }
         }
@@ -43,7 +46,7 @@ pipeline {
         stage('Publish Acceptance Test Report') {
             steps {
                 publishHTML(target: [
-                    reportDir: "${WORKDIR}/${REPORT_DIR}",
+                    reportDir: "${WORKSPACE_SAMPLE3}/build/reports/tests/acceptanceTest",
                     reportFiles: 'index.html',
                     reportName: 'Acceptance Test Report'
                 ])
@@ -52,6 +55,12 @@ pipeline {
     }
 
     post {
+        always {
+            echo 'Cleaning up...'
+            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/hazelcast.yaml || true"
+            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/calculator.yaml || true"
+            sh 'pkill -f "kubectl port-forward" || true'
+        }
         success {
             echo "Acceptance tests passed."
         }
