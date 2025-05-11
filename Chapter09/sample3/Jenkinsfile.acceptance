@@ -1,19 +1,18 @@
 pipeline {
-    agent { label 'docker-agent' }
+    agent {
+        docker {
+            image 'dlambrig/gradle-agent:latest'
+            args '-u root --network host -v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
 
     environment {
-        WORKSPACE_SAMPLE3 = "Chapter09/sample3"
-        WORKSPACE_SAMPLE1 = "Chapter08/sample1"
-        KUBECONFIG_PATH = "/var/jenkins_home/.kube/config"
+        WORKSPACE_SAMPLE1 = 'Chapter08/sample1'
+        WORKSPACE_SAMPLE3 = 'Chapter09/sample3'
+        KUBECONFIG_PATH = '/var/jenkins_home/.kube/config'
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/Yullik/Continuous-Delivery-with-Docker-and-Jenkins-Second-Edition.git'
-            }
-        }
-
         stage('Prepare Gradle Wrapper') {
             steps {
                 dir("${WORKSPACE_SAMPLE3}") {
@@ -35,7 +34,6 @@ pipeline {
         stage('Run Acceptance Tests') {
             steps {
                 dir("${WORKSPACE_SAMPLE3}") {
-                    // Port-forward the calculator service to localhost
                     sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl port-forward service/calculator-service 8765:8080 &"
                     sh 'sleep 5'
                     sh './gradlew acceptanceTest -Dcalculator.url=http://localhost:8765'
@@ -44,9 +42,12 @@ pipeline {
         }
 
         stage('Publish Acceptance Test Report') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
             steps {
-                publishHTML(target: [
-                    reportDir: "${WORKSPACE_SAMPLE3}/build/reports/tests/acceptanceTest",
+                publishHTML([
+                    reportDir: 'Chapter09/sample3/build/reports/tests/acceptanceTest',
                     reportFiles: 'index.html',
                     reportName: 'Acceptance Test Report'
                 ])
@@ -57,15 +58,16 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
-            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/hazelcast.yaml || true"
-            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/calculator.yaml || true"
-            sh 'pkill -f "kubectl port-forward" || true'
+            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/hazelcast.yaml"
+            sh "KUBECONFIG=${KUBECONFIG_PATH} kubectl delete -f ${WORKSPACE_SAMPLE1}/calculator.yaml"
+            sh "pkill -f 'kubectl port-forward' || true"
         }
         success {
-            echo "Acceptance tests passed."
+            echo 'Acceptance tests passed.'
         }
         failure {
-            echo "Acceptance tests failed."
+            echo 'Acceptance tests failed.'
         }
     }
 }
+
