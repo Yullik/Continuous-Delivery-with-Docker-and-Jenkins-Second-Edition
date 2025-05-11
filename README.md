@@ -4,7 +4,7 @@
 
 This is the code repository for [Continuous Delivery with Docker and Jenkins Second Edition](https://www.packtpub.com/virtualization-and-cloud/continuous-delivery-docker-and-jenkins-second-edition?utm_source=github&utm_medium=repository&utm_campaign=9781838552183), published by Packt.
 
-**Create secure applications by building complete CI/CD pipelines**
+**Create secure applications by building complete CI/CD pipelines**????
 
 ## What is this book about?
 The combination of Docker and Jenkins will help you scale up your builds, automate tasks and speed up Jenkins performance with the benefits of Docker containerization. This book will help you speed up software releases using fewer resources, improve quality with acceptance tests integrated into Jenkins builds and scale platform with Kubernetes.
