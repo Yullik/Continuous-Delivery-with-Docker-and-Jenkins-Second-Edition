@@ -31,7 +31,7 @@ pipeline {
         stage('Build') {
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "${GRADLEW_PATH} build"
+                    sh "${GRADLEW_PATH} build --no-daemon"
                 }
             }
         }
@@ -42,7 +42,7 @@ pipeline {
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "${GRADLEW_PATH} test"
+                    sh "${GRADLEW_PATH} test --no-daemon"
                 }
             }
         }
@@ -53,8 +53,8 @@ pipeline {
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "${GRADLEW_PATH} jacocoTestReport"
-                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"
+                    sh "${GRADLEW_PATH} jacocoTestReport --no-daemon"
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification --no-daemon"
                 }
             }
         }
@@ -65,7 +65,7 @@ pipeline {
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "${GRADLEW_PATH} checkstyleMain"
+                    sh "${GRADLEW_PATH} checkstyleMain --no-daemon"
                 }
             }
         }
@@ -76,7 +76,7 @@ pipeline {
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "${GRADLEW_PATH} checkstyleTest"
+                    sh "${GRADLEW_PATH} checkstyleTest --no-daemon"
                     publishHTML(target: [
                         reportDir: 'build/reports/checkstyle',
                         reportFiles: 'main.html',
@@ -89,7 +89,7 @@ pipeline {
         stage('Package') {
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "${GRADLEW_PATH} build"
+                    sh "${GRADLEW_PATH} build --no-daemon"
                 }
             }
         }
@@ -100,7 +100,7 @@ pipeline {
                     expression { return currentBuild.currentResult == 'SUCCESS' }
                     not { branch 'playground' }
                     not { branch 'main' }
-                    not { changeRequest() } // skip PRs like PR-8
+                    not { changeRequest() }
                 }
             }
             steps {
@@ -141,4 +141,5 @@ pipeline {
         }
     }
 }
+
 
