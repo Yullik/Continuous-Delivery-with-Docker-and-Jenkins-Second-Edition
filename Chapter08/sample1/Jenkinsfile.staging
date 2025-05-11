@@ -2,15 +2,12 @@ pipeline {
     agent { label 'docker-agent' }
 
     environment {
-        IMAGE_NAME = "yullik/calculator"
-        LOCAL_REGISTRY = "localhost:5000"
-        IMAGE_TAG = "latest"
-        IMAGE_FULL = "${LOCAL_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+        IMAGE_NAME = "calculator"
+        LOCAL_IMAGE = "yullik/calculator:latest"
+        REGISTRY_IMAGE = "localhost:5000/calculator:latest"
+        STAGING_CONTEXT = "docker-desktop"
+        PROD_CONTEXT = "gke_umls24-418119_us-central1_hello-cluster"
         KUBECONFIG_PATH = "/var/jenkins_home/.kube/config"
-    }
-
-    triggers {
-        pollSCM('H/5 * * * *')
     }
 
     stages {
@@ -20,73 +17,58 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Image') {
             steps {
                 dir("Chapter08/sample1") {
-                    sh "docker build -t ${IMAGE_FULL} ."
+                    sh './gradlew clean build'
+                    sh 'docker build -t ${LOCAL_IMAGE} .'
                 }
             }
         }
 
         stage('Push to Local Registry') {
             steps {
-                sh "docker push ${IMAGE_FULL}"
+                sh 'docker tag ${LOCAL_IMAGE} ${REGISTRY_IMAGE}'
+                sh 'docker push ${REGISTRY_IMAGE}'
             }
         }
 
-        stage('Deploy to Staging (Docker Desktop)') {
+        stage('Deploy to Staging') {
+            steps {
+                dir("Chapter08/sample1") {
+                    sh 'kubectl config use-context ${STAGING_CONTEXT}'
+                    sh 'kubectl apply -f calculator.yaml --validate=false'
+                    sh 'kubectl apply -f hazelcast.yaml --validate=false'
+                }
+            }
+        }
+
+        stage('Acceptance Test in Staging') {
             steps {
                 dir("Chapter08/sample1") {
                     sh '''
-                        kubectl config use-context docker-desktop
-                        export KUBECONFIG='${KUBECONFIG_PATH}'
-                        kubectl apply -f calculator.yaml --validate=false
-                        kubectl apply -f hazelcast.yaml --validate=false
-                        sleep 10
+                        nohup kubectl --kubeconfig=${KUBECONFIG_PATH} port-forward service/calculator-service 8765:8080 &
+                        sleep 5
+                        curl http://localhost:8765/sum?a=2\\&b=3
                     '''
                 }
             }
         }
 
-        stage('Test in Staging') {
+        stage('Deploy to Production') {
             steps {
                 dir("Chapter08/sample1") {
-                    script {
-                        sh '''
-                            nohup kubectl port-forward service/calculator-service 8765:8080 &
-                            sleep 5
-                            curl --fail http://localhost:8765/sum?a=2\\&b=3
-                        '''
-                    }
+                    sh 'kubectl config use-context ${PROD_CONTEXT}'
+                    sh 'kubectl apply -f calculator.yaml --validate=false'
+                    sh 'kubectl apply -f hazelcast.yaml --validate=false'
                 }
-            }
-        }
-
-        stage('Deploy to Production (Google GKE)') {
-            steps {
-                dir("Chapter08/sample1") {
-                    sh '''
-                        kubectl config use-context gke_umls24-418119_us-central1_hello-cluster
-                        export KUBECONFIG='${KUBECONFIG_PATH}'
-                        kubectl apply -f calculator.yaml --validate=false
-                        kubectl apply -f hazelcast.yaml --validate=false
-                    '''
-                }
-            }
-        }
-
-        stage('Verify Production Pods') {
-            steps {
-                sh '''
-                    kubectl get pods
-                '''
             }
         }
     }
 
     post {
         always {
-            echo "Pipeline execution complete."
+            echo 'Pipeline execution completed.'
         }
     }
 }
