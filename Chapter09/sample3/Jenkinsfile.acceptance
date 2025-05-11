@@ -2,8 +2,9 @@ pipeline {
     agent { label 'docker-agent' }
 
     environment {
-        GRADLEW_PATH = './gradlew'
-        WORKDIR = 'Chapter09/sample3'
+        WORKDIR = "Chapter09/sample3"
+        GRADLEW = "./gradlew"
+        REPORT_DIR = "build/reports/tests/acceptanceTest"
     }
 
     stages {
@@ -15,36 +16,37 @@ pipeline {
 
         stage('Prepare Gradle Wrapper') {
             steps {
-                dir(WORKDIR) {
-                    sh 'chmod +x gradlew'
+                dir("${WORKDIR}") {
+                    sh "chmod +x ${GRADLEW}"
                 }
             }
         }
 
-        stage('Acceptance Test') {
+        stage('Run Acceptance Tests') {
             steps {
-                dir(WORKDIR) {
-                    sh './gradlew acceptanceTest -Dcalculator.url=http://calculator-service:8080'
+                dir("${WORKDIR}") {
+                    sh "${GRADLEW} acceptanceTest -Dcalculator.url=http://calculator-service:8080"
                 }
             }
         }
 
-        stage('Publish Report') {
+        stage('Publish Acceptance Test Report') {
             steps {
-                dir(WORKDIR) {
-                    publishHTML(target: [
-                        reportDir: 'build/reports/tests/acceptanceTest',
-                        reportFiles: 'index.html',
-                        reportName: 'Acceptance Test Report'
-                    ])
-                }
+                publishHTML(target: [
+                    reportDir: "${WORKDIR}/${REPORT_DIR}",
+                    reportFiles: 'index.html',
+                    reportName: 'Acceptance Test Report'
+                ])
             }
         }
     }
 
     post {
-        always {
-            echo 'Pipeline completed.'
+        success {
+            echo "Acceptance tests passed."
+        }
+        failure {
+            echo "Acceptance tests failed."
         }
     }
 }
