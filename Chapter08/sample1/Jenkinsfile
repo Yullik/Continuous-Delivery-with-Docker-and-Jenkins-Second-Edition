@@ -1,13 +1,14 @@
 pipeline {
-    agent { label 'docker-agent' } 
+    agent { label 'docker-agent' }
     environment {
-        GRADLEW_PATH = "./gradlew"  
+        GRADLEW_PATH = "./gradlew"
         BUILD_TIMESTAMP = "${env.BUILD_ID}"
         WORKSPACE_JAVA = "./Chapter08/sample1/"
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  
+        DOCKER_REGISTRY = 'docker.io'  
     }
     triggers {
-        pollSCM('H * * * *')  // Trigger the pipeline on changes in the repository
+        pollSCM('H * * * *')  
     }
     stages {
         stage('Checkout') {
@@ -19,7 +20,7 @@ pipeline {
         stage('Prepare Gradle Wrapper') {
             steps {
                 dir("${WORKSPACE_JAVA}") {
-                    sh "chmod +x ${GRADLEW_PATH}"  // Making Gradle wrapper executable
+                    sh "chmod +x ${GRADLEW_PATH}"  
                 }
             }
         }
@@ -27,57 +28,57 @@ pipeline {
         stage('Build') {
             steps {
                 dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"  // Run Gradle build
+                    sh "${GRADLEW_PATH} build"  
                 }
             }
         }
 
         stage('Unit test') {
             when {
-                not { branch 'main' }  // Only runs on non-'main' branches
+                not { branch 'main' }  
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} test"  // Execute unit tests
+                    sh "${GRADLEW_PATH} test" 
                 }
             }
         }
 
         stage('Code coverage') {
             when {
-                branch 'main'  // Only runs on the 'main' branch
+                branch 'main' 
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} jacocoTestReport"  // Generate Jacoco test report
-                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  // Verify coverage
+                    sh "${GRADLEW_PATH} jacocoTestReport"  
+                    sh "${GRADLEW_PATH} jacocoTestCoverageVerification"  
                 }
             }
         }
 
         stage('Static code analysis') {
             when {
-                not { branch 'main' }  // Only runs on non-'main' branches
+                not { branch 'main' }  
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} checkstyleMain"  // Run checkstyle analysis
+                    sh "${GRADLEW_PATH} checkstyleMain"  
                 }
             }
         }
 
         stage('Jacoco Checkstyle Test') {
             when {
-                not { branch 'main' }  // Only runs on non-'main' branches
+                not { branch 'main' } 
             }
             steps {
                 dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} checkstyleTest"  // Run checkstyle on tests
+                    sh "${GRADLEW_PATH} checkstyleTest"  
                     publishHTML(target: [
                         reportDir: 'build/reports/checkstyle',  
                         reportFiles: 'main.html',  
                         reportName: "Jacoco Checkstyle"
-                    ])  // Publish checkstyle report
+                    ])  
                 }
             }
         }
@@ -85,7 +86,38 @@ pipeline {
         stage('Package') {
             steps {
                 dir("${WORKSPACE_JAVA}") {  
-                    sh "${GRADLEW_PATH} build"  // Package the application
+                    sh "${GRADLEW_PATH} build"  
+                }
+            }
+        }
+
+        stage('Docker Build and Push') {
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh """
+                            # Login to Docker Hub using stored credentials
+                            echo "\$DOCKER_PASSWORD" | docker login --username \$DOCKER_USERNAME --password-stdin
+
+                            # Set image name and version depending on the branch
+                            if [ "${GIT_BRANCH}" == "main" ]; then
+                                IMAGE_NAME="calculator"
+                                IMAGE_TAG="1.0"
+                            else
+                                IMAGE_NAME="calculator-feature"
+                                IMAGE_TAG="0.1"
+                            fi
+
+                            # Build the Docker image
+                            docker build -t \$IMAGE_NAME:${IMAGE_TAG} .
+
+                            # Tag the image for pushing
+                            docker tag \$IMAGE_NAME:${IMAGE_TAG} \$DOCKER_REGISTRY/\$DOCKER_USERNAME/\$IMAGE_NAME:${IMAGE_TAG}
+
+                            # Push the image to Docker Hub
+                            docker push \$DOCKER_REGISTRY/\$DOCKER_USERNAME/\$IMAGE_NAME:${IMAGE_TAG}
+                        """
+                    }
                 }
             }
         }
@@ -100,4 +132,3 @@ pipeline {
         }
     }
 }
-
