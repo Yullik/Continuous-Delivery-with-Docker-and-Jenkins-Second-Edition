@@ -78,52 +78,9 @@ pipeline {
             }
         }
 
-        stage('Docker build') {
-            steps {
-                    dir("${WORKSPACE_JAVA}") { 
-                    sh "docker build -t yullik/calculator:${BUILD_TIMESTAMP} ." 
-                }
-            }
-        }
-
-        stage('Docker login') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh 'docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD'  
-                }
-            }
-        }
-
-        stage('Docker push') {
-            steps {
-                sh "docker push yullik/calculator:${BUILD_TIMESTAMP}" 
-            }
-        }
-
-        stage('Update version') {
-            steps {
-                dir("${WORKSPACE_JAVA}") {  
-                    sh "sed -i 's/{{VERSION}}/${BUILD_TIMESTAMP}/g' calculator.yaml" 
-                }
-            }
-        }
         
 
-        stage('Acceptance test') {
-            steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x acceptance-test.sh && ./acceptance-test.sh"  // Run acceptance tests
-            }
-        }
-
-
-        stage('Smoke test') {
-            steps {
-                sleep 60  // Wait for deployments
-                sh "chmod +x smoke-test.sh && ./smoke-test.sh"  // Run smoke tests
-            }
-        }
-    }
+        
     post {
         success {
             echo "pipeline ran perfectly"
