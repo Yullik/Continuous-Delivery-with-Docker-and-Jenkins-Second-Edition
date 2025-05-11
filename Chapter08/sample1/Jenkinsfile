@@ -7,7 +7,7 @@ pipeline {
         DOCKER_CREDENTIALS_ID = 'dockerhub-creds'  // added credentials
     }
     triggers {
-        pollSCM('* * * * *')  // Trigger the pipeline on changes in the repository
+        pollSCM('H * * * *')  // Trigger the pipeline on changes in the repository
     }
     stages {
         stage('Checkout') {
